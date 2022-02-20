@@ -1,51 +1,18 @@
+#Importing packages
 import random
-class Teacher:
-	name=""
-	subCode=""
-	def __init__(self,name,subCode):
-		self.name=name
-		self.subCode=subCode
-	def getTeacherName(self):
-		return self.name
-	def getSubjectCode(self):
-		return self.subCode
-class Department:
-	name=""
-	no_of_subs=0
-	subs=[]
-	def __init__(self,name,no_of_subs,subs):
-		self.name=name
-		self.no_of_subs=no_of_subs
-		self.subs=subs
-	def getDepartmentName(self):
-		return self.name
-	def getNoOfSubs(self):
-		return self.no_of_subs
-	def getSubs(self):
-		return self.subs
-
-class Subjects:
-	no_of_classes=0
-	sub_code=""
-	subTeacher=""
-	def __init__(self,sub_code,subTeacher,no_of_classes,):
-		self.sub_code=sub_code
-		self.no_of_classes=no_of_classes
-		self.subTeacher=subTeacher
-	def getSubCode(self):
-		return self.sub_code
-	def getSubTeacherName(self):
-		return self.subTeacher
-	def getNoOfClasses(self):
-		return self.no_of_classes
+from copy import deepcopy
+from modules.departments import *
+from modules.teachers import *
+from modules.subjects import *
 	
+#Reading a file
 def readFile():
 	inp=open('input.txt','r')
-	department=[]
+	departments=[]
 	teachers=[]
 	index=0
 	flag=0
-	d={}
+	noOfClassesAllSem={}
 	ind=0
 	for i in inp.readlines():
 		data=i.split(' ')
@@ -55,47 +22,41 @@ def readFile():
 			continue
 		if flag==0:
 			subjects=[]
-			dd={}
+			noOfClassesEachSem={}
 			for sub in range(1,len(data),3):
-				dd[data[sub+1]]=int(data[sub+2])
+				noOfClassesEachSem[data[sub+1]]=int(data[sub+2])
 				subjects.append(Subjects(data[sub],data[sub+1],data[sub+2]))
-			d[ind]=dd
-			department.append(Department(data[0],(len(data)-1)//3,subjects))
-			# print(department[index].getDepartmentName())
-			# print(department[index].getNoOfSubs())
-			# department[index].getSubs()
-			# print(department)
+			noOfClassesAllSem[ind]=noOfClassesEachSem
+			departments.append(Department(data[0],(len(data)-1)//3,subjects))
 			index+=1
 		else:
 			teachers.append(Teacher(data[0],data[1]))
-			print(data[0]+" "+data[1])
+			# print(data[0]+" "+data[1])
 		ind+=1
-	# print(department)
+	
 
 	inp.close()
-	print(d)
-	# print(teacherssubTeacher)
-	# print(department[0].getSubs()[0].getSubCode())
-	return (department,teachers,d)
-def fitness(departments,di):
+	# print(d)
+	return (departments,teachers,noOfClassesAllSem)
+def fitness(departments,noOfClassesAllSem):
 	count=0
 	for i in range(4):
 		for j in range(5):
 			for k in range(6):
 				if(departments[i][j][k]!="None"):
-					if(di[i][departments[i][j][k]]<=0):
+					if(noOfClassesAllSem[i][departments[i][j][k]]<=0):
 						count+=1
-					di[i][departments[i][j][k]]-=1
+					noOfClassesAllSem[i][departments[i][j][k]]-=1
 	for i in range(5):
 		for j in range(6):
-			dic={}
+			noOfClassesAllSem={}
 			for k in range(4):
 				if(departments[k][i][j]!="None"):
-					if departments[k][i][j] in dic.keys():
-						dic[departments[k][i][j]]+=1
+					if departments[k][i][j] in noOfClassesAllSem.keys():
+						noOfClassesAllSem[departments[k][i][j]]+=1
 						count+=1
 					else:
-						dic[departments[k][i][j]]=1
+						noOfClassesAllSem[departments[k][i][j]]=1
 	return count
 def crossover(parent1,parent2):
 	dept_s=random.choice([i for i in range(4)])
@@ -108,7 +69,7 @@ def crossover(parent1,parent2):
 		for j in range(row_s,row_f+1):
 			for k in range(col_s,col_f+1):
 				parent1[i][j][k],parent2[i][j][k]=parent2[i][j][k],parent1[i][j][k]
-	print(parent1)
+	# print(parent1)
 	return (parent1,parent2)
 def mutation(parent1,parent2):
 	child_chromosome=[]
@@ -125,14 +86,62 @@ def mutation(parent1,parent2):
 			a.append(b)
 		child_chromosome.append(a)
 	return child_chromosome
+def removeClashes(ans):
+	arr=[[] for i in range(4)]
+	for i in range(5):
+		for j in range(6):
+			teachers=[]
+			for k in range(4):
+				if(ans[k][i][j]!="None"):
+					if ans[k][i][j] in teachers:
+						arr[k].append(ans[k][i][j])
+						ans[k][i][j]="None"
+					else:
+						teachers.append(ans[k][i][j]);
+	for k in  range(1,4):
+		for l in arr[k]:
+			flag=0;
+			for i in range(5):
+				for j in range(6):
+					teachers=[]
+					for kk in range(4):
+						teachers.append(ans[kk][i][j])
+						if l in teachers:
+							break;
+					if l not in teachers:
+						ans[k][i][j]=l
+						flag=1
+						break
+				if flag==1:
+					break
+	# print(arr)
+	return ans
 
+def stableNoOfSubs(ans,noOfClassesAllSem):
+	for i in range(4):
+		for j in range(5):
+			for k in range(6):
+				if(ans[i][j][k]!="None"):
+					noOfClassesAllSem[i][ans[i][j][k]]-=1
+					if(noOfClassesAllSem[i][ans[i][j][k]]<0):
+						ans[i][j][k]="None"
+		# print(i," ",noOfClassesAllSem[i])		
+	for i in range(4):
+		for key,val in noOfClassesAllSem[i].items():
+			for j in range(val):
+				for k in range(5):
+					for l in range(6):
+						if(ans[i][k][l]=="None"):
+							ans[i][k][l]=key
+	return ans
 def createPopulation(departments,dic):
+	dic2=deepcopy(dic)
 	population=[[[["" for k in range(6)] for j in range(5)] for i in range(len(departments))] for ii in range(10)]
 	# print(population)
 	teachearArr=[]
 	for i in departments:
 		listOfSubs=i.getSubs()
-		print(len(listOfSubs))
+		# print(len(listOfSubs))
 		cnt=0
 		temp=[]
 		for j in range(len(listOfSubs)):
@@ -164,12 +173,12 @@ def createPopulation(departments,dic):
 		fit=sorted(fit,key=lambda x:x[1])
 		a1,b1=fit[0]
 		a2,b2=fit[1]
-		print(a1," ",b1)
+		# print(a1," ",b1)
 		if(err>b1):
 			err=b1
 			ans=population[a1]
 		if(b1==0 or len(population) <= 2):
-			print(population[a1])
+			# print(population[a1])
 			break
 		(population[a1],population[a2])=crossover(population[a1],population[a2])
 		size=len(population)//2
@@ -178,7 +187,12 @@ def createPopulation(departments,dic):
 			new_population.append(population[i])
 		new_population.append(mutation(population[a1],population[a2]))
 		population=new_population
-	print(err)
+	# print(ans)
+	# print(dic2)
+	ans=stableNoOfSubs(ans,dic2)
+	# print(err)
+	# print(ans)
+	ans=removeClashes(ans)
 	print(ans)
 
 def main():
