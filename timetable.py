@@ -1,6 +1,7 @@
 #Importing packages
 import random
 from copy import deepcopy
+from tkinter import W
 from modules.departments import *
 from modules.teachers import *
 from modules.subjects import *
@@ -194,7 +195,13 @@ def createPopulation(departments,dic):
 	# print(ans)
 	ans=removeClashes(ans)
 	print(ans)
+	storeOutput(ans)
 
+
+
+def storeOutput(generatedRoster) :
+	f = open('schedule.txt','w')
+	f.write(str(generatedRoster))
 def main():
 	(department,teachers,dic)=readFile()
 	createPopulation(department,dic)
